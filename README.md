@@ -149,8 +149,10 @@ $ cat ~/Library/Application\ Support/Code/User/settings.json
 }
 ```
 
-参考: https://qiita.com/fukasawah/items/cfff8957f3956850dc7e
-https://actyway.wordpress.com/2019/01/25/vscode-prettier-configuration/
+参考: 
+
+- https://qiita.com/fukasawah/items/cfff8957f3956850dc7e
+- https://actyway.wordpress.com/2019/01/25/vscode-prettier-configuration/
 
 
 これで、*.vueファイル群は保存時に自動にESLintでフォーマットされ(シングルクォート、セミコロンナシ)。
@@ -347,6 +349,9 @@ import * as functions from 'firebase-functions';
 //  response.send("Hello from Firebase!");
 // });
 $
+
+コード修正して、、、。
+
  
 $ npm run deploy
 ```
@@ -354,6 +359,8 @@ $ npm run deploy
 ## CORS追加
 
 ```console
+$ pwd
+/Users/xxx/git/my_vue_template/functions
 $ npm install cors --save
 $ npm i --save-dev npm install @types/cors
 ```
