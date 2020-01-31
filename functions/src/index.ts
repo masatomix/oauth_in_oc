@@ -6,7 +6,8 @@ import oauthConfig from './oauthConfig'
 import oidcConfig from './oidcConfig'
 import * as cookie from 'cookie'
 import urljoin from 'url-join'
-
+import corsLib from 'cors'
+const cors = corsLib()
 
 // https://firebase.google.com/docs/auth/admin/create-custom-tokens?hl=ja
 
@@ -348,5 +349,39 @@ async function sendSlack() {
     })
   })
 }
+
+
+const getIdToken = function (req) {
+  if (!req.headers.authorization) {
+    throw new Error('Authorization ヘッダが存在しません。')
+  }
+  const match = req.headers.authorization.match(/^Bearer (.*)$/)
+  if (match) {
+    const idToken = match[1]
+    return idToken
+  }
+  throw new Error(
+    'Authorization ヘッダから、Bearerトークンを取得できませんでした。'
+  )
+}
+
+export const echo = functions.https.onRequest((req, res) => {
+  return cors(req, res, async () => {
+    const body = req.body
+    console.log(JSON.stringify(body))
+    console.log(req.headers.authorization)
+    try {
+      const idToken = getIdToken(req) // Bearerトークン取れるかチェック
+      const decodedToken = await admin.auth().verifyIdToken(idToken)
+
+      // ココにロジック
+      console.log(decodedToken.uid) // Firebase Authentication 上のユーザUID
+      res.send(JSON.stringify(body))
+    } catch (error) {
+      console.log(error.message)
+      res.status(401).send(error.message)
+    }
+  })
+})
 
 // https://firebase.google.com/docs/hosting/functions
