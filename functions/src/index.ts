@@ -15,7 +15,6 @@ const cors = corsLib()
 // https://api.slack.com/docs/sign-in-with-slack
 // https://qiita.com/YutaroYoshikawa/items/deaaff3818f9e1c5d1c5
 
-
 // Firebaseのサービスアカウントキーを使う場合
 import * as serviceAccount from './firebase-adminsdk.json'
 admin.initializeApp({
@@ -23,145 +22,7 @@ admin.initializeApp({
   // storageBucket: firebaseConfig.storageBucket
 })
 
-
-export const chat = functions.https.onRequest(async (req, res) => {
-  await sendSlack()
-  res.send('ok')
-})
-
-export const chat_pub = functions.pubsub
-  .topic('slackChatTopic')
-  .onPublish(async message => {
-    await sendSlack()
-  })
-
-// $ gcloud pubsub topics publish slackChatTopic  --message '{"name":"Xenia"}'
-
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//
-export const oauth2 = functions.https.onRequest(async (req, res) => {
-
-  // errorでリダイレクトされたとき
-  // ユーザがキャンセルしたときはココなので、そこそこちゃんと実装しないと。。(今んとこ適当実装)
-  if (req.query.error) {
-    res.setHeader('Content-Type', 'text/plain;charset=UTF-8')
-    const message = `
-error: ${req.query.error}
-error_uri: ${req.query.error_uri}
-error_description: ${req.query.error_description}
-`
-    res.send(message)
-    return
-  }
-
-  const code = req.query.code
-
-  // codeがなかったとき、まずは認可画面へ遷移
-  if (!code) {
-    const reqIdToken = req.query.idToken
-    if (!reqIdToken) {
-      console.log('codeがないのに、req.query.idToken もない')
-      res.status(400).send('req.query.idToken が取れませんでした')
-      return
-    }
-
-    // idTokenをチェックする必要あり
-    try {
-      await verifyIdToken(reqIdToken)
-    } catch (error) {
-      console.log(error.message)
-      res.status(400).send('req.query.idToken が正しくありません<br />' + error.message)
-      return
-    }
-    addCookie(res, 'idToken', reqIdToken)
-
-    const randomValue = getRandomString()
-    console.log('randomValue: ' + randomValue)
-
-    const authorization_endpoint_uri = [
-      oauthConfig.authorization_endpoint,
-      '?client_id=',
-      oauthConfig.client_id,
-      '&redirect_uri=',
-      oauthConfig.redirect_uri,
-      '&state=',
-      randomValue,
-      '&response_type=code',
-      '&scope=',
-      oauthConfig.scope
-    ].join('')
-
-    session.setAttributeById(reqIdToken, 'state', randomValue)
-    res.redirect(authorization_endpoint_uri)
-  } else {
-    // そもそもidTokenがなかったら後続を続ける意味がないので、正当性チェック verifyIdToken もここで実施
-    const cookies = cookie.parse(req.headers.cookie as string)
-    const idToken = cookies.idToken
-
-    let userId = ''
-    // idTokenをチェックする必要あり
-    try {
-      userId = await verifyIdToken(idToken)
-    } catch (error) {
-      console.log(error.message)
-      res.status(400).send('cookies.idToken が正しくありません。そもそも取得できなかったかも。<br />' + error.message)
-      return
-    }
-
-    const csrf = await checkCSRF(req, res, idToken)
-    if (!csrf) {
-      res
-        .status(400)
-        .send('前回のリクエストと今回のstate値が一致しないため、エラー。')
-      return
-    }
-
-    const formParams = {
-      redirect_uri: oauthConfig.redirect_uri,
-      client_id: oauthConfig.client_id,
-      client_secret: oauthConfig.client_secret,
-      grant_type: 'authorization_code',
-      code: code
-    }
-
-    const options = {
-      uri: oauthConfig.token_endpoint,
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded'
-      },
-      form: formParams,
-      json: true
-    }
-
-    const body: any = await doRequest(options)
-
-    console.log(userId)
-
-    admin
-      .firestore()
-      .collection('slackToken')
-      .doc(userId)
-      .set(body)
-
-    try {
-      const customToken = await admin.auth().createCustomToken(body.user_id, {
-        companyCode: 'pb',
-      })
-      const redirect = `http://localhost:8080/about?token=${customToken}`
-      res.redirect(redirect)
-
-    } catch (error) {
-      console.log(error)
-    }
-
-    // res.send('登録完了。ブラウザ閉じちゃってください。')
-  }
-})
-
 export const oauth = functions.https.onRequest(async (req, res) => {
-
   // errorでリダイレクトされたとき
   // ユーザがキャンセルしたときはココなので、そこそこちゃんと実装しないと。。(今んとこ適当実装)
   if (req.query.error) {
@@ -179,7 +40,6 @@ error_description: ${req.query.error_description}
 
   // codeがなかったとき、まずは認可画面へ遷移
   if (!code) {
-
     const randomValue = getRandomString()
     console.log('randomValue: ' + randomValue)
 
@@ -193,31 +53,29 @@ error_description: ${req.query.error_description}
       randomValue,
       '&response_type=code',
       '&scope=',
-      oauthConfig.scope
+      oauthConfig.scope,
     ].join('')
 
     const sessionId = getRandomString()
     addCookie(res, 'sessionId', sessionId) // クライアントとセッションを「sessionId」で繋ぐ
 
+    session.setAttributeById(sessionId, 'state', randomValue)
     const fromUrl = req.headers.referer as string
     console.log(fromUrl)
-    session.setAttributeById(sessionId, 'state', randomValue)
-    session.setAttributeById(sessionId, 'fromUrl', fromUrl)
-
-    // const fromUrl = req.query.fromUrl
-    // console.log(fromUrl)
-    // if (fromUrl) {
-    //   session.setAttributeById(sessionId, 'fromUrl', fromUrl)
-    // }
-
+    if (fromUrl) {
+      session.setAttributeById(sessionId, 'fromUrl', fromUrl)
+    }
     res.redirect(authorization_endpoint_uri)
   } else {
     const cookies = cookie.parse(req.headers.cookie as string)
     const sessionId = cookies.sessionId
-
     console.log('sessionId:', sessionId)
-    const fromUrl = await session.getAttributeById(sessionId, 'fromUrl') // 場合によっては渡せないことも考慮が必要。
+
+    // ホントはココの処理、もっと後がいいんだけどcsrfチェックをしたらSessionからデータを削除するのでココで:-)
+    // 今回は referer を保持しておいて、そこにリダイレクトにしてるけど、キメウチとかの方が安全かもしれない
+    const fromUrl = await session.getAttributeById(sessionId, 'fromUrl')
     console.log('fromUrl:', fromUrl)
+    // ここまで
 
     const csrf = await checkCSRF(req, res, sessionId)
     if (!csrf) {
@@ -232,25 +90,34 @@ error_description: ${req.query.error_description}
       client_id: oauthConfig.client_id,
       client_secret: oauthConfig.client_secret,
       grant_type: 'authorization_code',
-      code: code
+      code: code,
     }
 
     const options = {
       uri: oauthConfig.token_endpoint,
       method: 'POST',
       headers: {
-        'content-type': 'application/x-www-form-urlencoded'
+        'content-type': 'application/x-www-form-urlencoded',
       },
       form: formParams,
-      json: true
+      json: true,
     }
 
     const body: any = await doRequest(options)
+    console.log('user_id:',body.user_id)
+    console.log('team_id:',body.team_id)
+    console.log('scope:',body.scope)
+    console.log('access_token:',body.access_token)
+    console.log('user.name:',body.user.name)
+    console.log('user.email:',body.user.email)
+    // console.log('body:',body)
     try {
       // ココからは、カスタムトークンを生成してクライアントへ返却する処理
-      const customToken = await admin.auth().createCustomToken(body.user_id, {
-        // companyCode: 'pb',
-      })
+      const customToken = await admin.auth().createCustomToken(body.user_id) // slackのユーザIDをそのままFirebaseAuthのIDのキーにしちゃう。
+      console.log(customToken)
+      // const customToken = await admin.auth().createCustomToken(body.user_id, {
+      //   companyCode: 'pb',
+      // })
       const redirect = urljoin(fromUrl, `?token=${customToken}`)
       res.redirect(redirect)
     } catch (error) {
@@ -293,7 +160,7 @@ async function verifyIdToken(idToken) {
     console.log(`aud(Actual  ): ${decodedToken.aud}`)
     throw new Error('issもしくはaudが想定外でした')
   }
-  return decodedToken.uid
+  return decodedToken
 }
 
 async function checkCSRF(req, res, sessionId) {
@@ -315,43 +182,7 @@ function addCookie(res, key, value) {
   res.setHeader('Set-Cookie', cookie.serialize(key, value, options))
 }
 
-async function sendSlack() {
-  const querySnapshot = await admin
-    .firestore()
-    .collection('slackToken')
-    .get()
-
-  querySnapshot.forEach(doc => {
-    const fbUserId = doc.id
-    const jsonData = doc.data()
-
-    const option = {
-      url: 'https://slack.com/api/chat.postMessage',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        Authorization: `Bearer ${jsonData.access_token}`
-      },
-      json: {
-        channel: '@papa',
-        text: `${fbUserId} です、今日は！`
-      }
-    }
-    request(option, (error, response, body) => {
-      if (error) {
-        console.log('error:', error)
-        return
-      }
-      if (response && body) {
-        console.log('status Code:', response && response.statusCode)
-        console.log(body)
-      }
-    })
-  })
-}
-
-
-const getIdToken = function (req) {
+const getIdToken = function(req) {
   if (!req.headers.authorization) {
     throw new Error('Authorization ヘッダが存在しません。')
   }
@@ -361,7 +192,7 @@ const getIdToken = function (req) {
     return idToken
   }
   throw new Error(
-    'Authorization ヘッダから、Bearerトークンを取得できませんでした。'
+    'Authorization ヘッダから、Bearerトークンを取得できませんでした。',
   )
 }
 
@@ -372,7 +203,7 @@ export const echo = functions.https.onRequest((req, res) => {
     console.log(req.headers.authorization)
     try {
       const idToken = getIdToken(req) // Bearerトークン取れるかチェック
-      const decodedToken = await admin.auth().verifyIdToken(idToken)
+      const decodedToken = await verifyIdToken(idToken)
 
       // ココにロジック
       console.log(decodedToken.uid) // Firebase Authentication 上のユーザUID
