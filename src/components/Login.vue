@@ -75,6 +75,13 @@ export default {
           this.$store.commit(constants.mutations.user, result.user)
           this.$store.commit(constants.mutations.loginStatus, true)
 
+          // firebase
+          //   .auth()
+          //   .currentUser.getIdToken()
+          //   .then(token => {
+          //     console.log(token)
+          //   })
+
           // ログインできたらTOP画面に遷移
           this.$router.push(
             this.$route.query.redirect

@@ -107,12 +107,7 @@ export default {
   },
   data: () => ({
     drawer: null,
-    items: [
-      { icon: 'work', text: 'Todo', path: './' },
-      { icon: 'supervisor_account', text: 'Follower', path: 'about' },
-      { icon: 'history', text: 'Timeline(未)', path: './' },
-      { icon: 'settings', text: 'Settings(未)', path: 'about' },
-    ],
+    items: [{ icon: 'work', text: 'Todo', path: './' }],
   }),
   methods: {
     gotoPath: function(item) {
