@@ -59,12 +59,19 @@ error_description: ${req.query.error_description}
     const sessionId = getRandomString()
     addCookie(res, 'sessionId', sessionId) // クライアントとセッションを「sessionId」で繋ぐ
 
-    session.setAttributeById(sessionId, 'state', randomValue)
+    // session.setAttributeById(sessionId, 'state', randomValue)
+    // const fromUrl = req.headers.referer as string
+    // console.log(fromUrl)
+    // if (fromUrl) {
+    //   session.setAttributeById(sessionId, 'fromUrl', fromUrl)
+    // }
+
     const fromUrl = req.headers.referer as string
-    console.log(fromUrl)
-    if (fromUrl) {
-      session.setAttributeById(sessionId, 'fromUrl', fromUrl)
+    const obj = {
+      state: randomValue,
+      fromUrl: fromUrl,
     }
+    session.setAttributeObjById(sessionId, obj)
     res.redirect(authorization_endpoint_uri)
   } else {
     const cookies = cookie.parse(req.headers.cookie as string)
@@ -104,12 +111,12 @@ error_description: ${req.query.error_description}
     }
 
     const body: any = await doRequest(options)
-    console.log('user_id:',body.user_id)
-    console.log('team_id:',body.team_id)
-    console.log('scope:',body.scope)
-    console.log('access_token:',body.access_token)
-    console.log('user.name:',body.user.name)
-    console.log('user.email:',body.user.email)
+    console.log('user_id:', body.user_id)
+    console.log('team_id:', body.team_id)
+    console.log('scope:', body.scope)
+    console.log('access_token:', body.access_token)
+    console.log('user.name:', body.user.name)
+    console.log('user.email:', body.user.email)
     // console.log('body:',body)
     try {
       // ココからは、カスタムトークンを生成してクライアントへ返却する処理

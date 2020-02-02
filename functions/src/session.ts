@@ -54,18 +54,18 @@ const me = {
     // }
   },
 
-  // setAttributeObjById(sessionId: string, obj: any) {
-  //   console.log('sessionId:', sessionId)
+  setAttributeObjById(sessionId: string, obj: any) {
+    console.log('sessionId:', sessionId)
 
-  //   const now = admin.firestore.FieldValue.serverTimestamp()
-  //   const ref = admin.firestore().collection('session').doc(sessionId)
+    const now = admin.firestore.FieldValue.serverTimestamp()
+    const ref = admin.firestore().collection('session').doc(sessionId)
 
-  //   const target = Object.assign(obj, {
-  //     updatedAt: now,
-  //     createdAt: now,
-  //   })
-  //   ref.set(target)
-  // },
+    const target = Object.assign(obj, {
+      updatedAt: now,
+      createdAt: now,
+    })
+    ref.set(target)
+  },
 
   async getAttributeById(sessionId: string, key: string) {
     const docref = await admin
