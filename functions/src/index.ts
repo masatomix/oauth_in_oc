@@ -59,19 +59,13 @@ error_description: ${req.query.error_description}
     const sessionId = getRandomString()
     addCookie(res, 'sessionId', sessionId) // クライアントとセッションを「sessionId」で繋ぐ
 
-    // session.setAttributeById(sessionId, 'state', randomValue)
+    await session.setAttributeById(sessionId, 'state', randomValue)
+    // await session.setAttributeObjById(sessionId,{'state':randomValue})
     // const fromUrl = req.headers.referer as string
     // console.log(fromUrl)
     // if (fromUrl) {
     //   session.setAttributeById(sessionId, 'fromUrl', fromUrl)
     // }
-
-    const fromUrl = req.headers.referer as string
-    const obj = {
-      state: randomValue,
-      fromUrl: fromUrl,
-    }
-    session.setAttributeObjById(sessionId, obj)
     res.redirect(authorization_endpoint_uri)
   } else {
     const cookies = cookie.parse(req.headers.cookie as string)
@@ -80,8 +74,8 @@ error_description: ${req.query.error_description}
 
     // ホントはココの処理、もっと後がいいんだけどcsrfチェックをしたらSessionからデータを削除するのでココで:-)
     // 今回は referer を保持しておいて、そこにリダイレクトにしてるけど、キメウチとかの方が安全かもしれない
-    const fromUrl = await session.getAttributeById(sessionId, 'fromUrl')
-    console.log('fromUrl:', fromUrl)
+    // const fromUrl = await session.getAttributeById(sessionId, 'fromUrl')
+    // console.log('fromUrl:', fromUrl)
     // ここまで
 
     const csrf = await checkCSRF(req, res, sessionId)
@@ -111,6 +105,23 @@ error_description: ${req.query.error_description}
     }
 
     const body: any = await doRequest(options)
+    if (!body.ok) {
+      // デフォルトのSlackチームから切り替えるとなぜかこのエラーが発生するので
+      // 強引に、来た場所にもどす
+      if (body.error === 'oauth_authorization_url_mismatch') {
+        console.log(body)
+        res.redirect(oauthConfig.from_uri)
+        return
+      }
+      res.setHeader('Content-Type', 'text/plain;charset=UTF-8')
+      const message = `
+  error: ${req.query.error}
+  error_uri: ${req.query.error_uri}
+  error_description: ${req.query.error_description}
+  `
+      res.send(message)
+      return
+    }
     console.log('user_id:', body.user_id)
     console.log('team_id:', body.team_id)
     console.log('scope:', body.scope)
@@ -125,7 +136,7 @@ error_description: ${req.query.error_description}
       // const customToken = await admin.auth().createCustomToken(body.user_id, {
       //   companyCode: 'pb',
       // })
-      const redirect = urljoin(fromUrl, `?token=${customToken}`)
+      const redirect = urljoin(oauthConfig.from_uri, `?token=${customToken}`)
       res.redirect(redirect)
     } catch (error) {
       console.log(error)
@@ -175,10 +186,13 @@ async function checkCSRF(req, res, sessionId) {
 
   const sessionState = await session.getAttributeById(sessionId, 'state')
 
-  session.invalidate(sessionId)
   console.log('requestState: ' + state)
   console.log('sessionState: ' + sessionState)
-  return state === sessionState
+  const result: boolean = (state === sessionState)
+  if (result) {
+    session.invalidate(sessionId)
+  }
+  return result
 }
 
 function addCookie(res, key, value) {
