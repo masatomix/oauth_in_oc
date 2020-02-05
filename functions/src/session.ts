@@ -2,13 +2,14 @@ import * as admin from 'firebase-admin'
 
 
 const me = {
-  setAttributeById(sessionId: string, key: string, value: string) {
+  async setAttributeById(sessionId: string, key: string, value: string) {
 
     // トランザクション処理。
     const ref = admin.firestore().collection('session').doc(sessionId)
 
-    admin.firestore().runTransaction(async transaction => {
+    await admin.firestore().runTransaction(async transaction => {
       console.log('sessionId:', sessionId)
+      console.log(`に、${key}: ${value} で書き込みます`)
 
       const now = admin.firestore.FieldValue.serverTimestamp()
       const docref = await transaction.get(ref)
@@ -54,8 +55,9 @@ const me = {
     // }
   },
 
-  // setAttributeObjById(sessionId: string, obj: any) {
+  // async setAttributeObjById(sessionId: string, obj: any) {
   //   console.log('sessionId:', sessionId)
+  //   console.log(`に ${obj} で書き込みます`)
 
   //   const now = admin.firestore.FieldValue.serverTimestamp()
   //   const ref = admin.firestore().collection('session').doc(sessionId)
@@ -64,7 +66,7 @@ const me = {
   //     updatedAt: now,
   //     createdAt: now,
   //   })
-  //   ref.set(target)
+  //   await ref.set(target)
   // },
 
   async getAttributeById(sessionId: string, key: string) {
