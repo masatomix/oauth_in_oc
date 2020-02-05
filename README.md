@@ -7,6 +7,30 @@
 ![Sign_in_with_Slack.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/73777/b12893b7-70e7-96e0-d600-aed0ff3afe45.png)
 
 
+## firebase-tools の準備
+
+```
+$ npm install -g firebase-tools
+$ source ~/.bash_profile
+$ firebase --version
+7.12.1
+
+$ firebase login
+..
+? Allow Firebase to collect CLI usage and error reporting information? Yes
+i  To change your data collection preference at any time, run `firebase logout` and log in again.
+
+Visit this URL on this device to log in:
+https://accounts.google.com/o/oauth2/auth?...redirect_uri=http%3A%2F%2Flocalhost%3A9005
+
+Waiting for authentication...
+
+✔  Success! Logged in as masatomix@example.com
+$
+```
+
+
+
 ## 環境構築
 
 ```console
@@ -18,7 +42,7 @@ $ cd functions
 $ npm install
 
 $ cd ../
-$ firebase use --add   // で自分のプロジェクトを選択してください
+$ firebase use --add   // で自分のFirebase プロジェクトを選択してください
 ```
 
 
