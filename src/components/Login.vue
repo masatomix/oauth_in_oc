@@ -11,26 +11,9 @@
               </v-toolbar>
               <v-card-text>
                 <div class="form-signin">
-                  <h1>
-                    <a :href="loginUrl">
-                      <img
-                        alt="Sign in with Slack"
-                        src="https://api.slack.com/img/sign_in_with_slack.png"
-                        style="cursor:pointer"
-                      />
-                    </a>
-                  </h1>
-                </div>
-                <div class="form-signin">
-                  <h1>
-                    <a :href="authorization_endpoint_uri">
-                      <img
-                        alt="Sign in with Slack"
-                        src="https://api.slack.com/img/sign_in_with_slack.png"
-                        style="cursor:pointer"
-                      />
-                    </a>
-                  </h1>
+                  <a :href="authorization_endpoint_uri">
+                    OC APIと接続
+                  </a>
                 </div>
               </v-card-text>
             </v-card>
@@ -42,12 +25,10 @@
 </template>
 
 <script>
-import firebase from 'firebase'
-import constants from '@/constants'
-import restConfig from '../restConfig'
 import oauthConfig from '../oauthConfig'
 import request from 'request'
 import crypto from 'crypto'
+import urljoin from 'url-join'
 
 // import 'firebaseui/dist/firebaseui.css'
 
@@ -67,14 +48,14 @@ export default {
       },
       token: null,
       authorization_endpoint_uri: null,
+      oauthConfig: null,
     }
   },
-  created: function() {
+  created: async function() {
+    this.oauthConfig = await createOAuthConfig(
+      'https://iis2.ad.ki-no.org/identity',
+    )
     const param = new URLSearchParams(window.location.search)
-    this.token = param.get('token')
-    if (this.token) {
-      this.loginByToken(this.token)
-    }
 
     if (param.get('code')) {
       this.loginByCode(param.get('code')).finally(() =>
@@ -84,18 +65,13 @@ export default {
       const {
         code_verifier,
         authorization_endpoint_uri,
-      } = createAuthorizationURL()
+      } = createAuthorizationURL(this.oauthConfig)
 
       this.$store.commit('code_verifier', code_verifier)
       this.authorization_endpoint_uri = authorization_endpoint_uri
     }
   },
-  computed: {
-    loginUrl() {
-      // return [restConfig.apiUri, '?fromUrl=', window.location.href].join('')
-      return restConfig.apiUri
-    },
-  },
+  computed: {},
   methods: {
     async loginByCode(code) {
       const code_verifier = this.$store.state.code_verifier
@@ -111,7 +87,7 @@ export default {
       }
 
       const options = {
-        uri: oauthConfig.token_endpoint,
+        uri: this.oauthConfig.token_endpoint,
         method: 'POST',
         headers: {
           'content-type': 'application/x-www-form-urlencoded',
@@ -121,40 +97,11 @@ export default {
       }
       const body = await doRequest(options)
       alert(body.access_token)
-      // this.loginByToken(body.access_token)
-    },
-    loginByToken(token) {
-      console.log(token)
-      firebase
-        .auth()
-        .signInWithCustomToken(token)
-        .then(result => {
-          this.$store.commit(constants.mutations.user, result.user)
-          this.$store.commit(constants.mutations.loginStatus, true)
-
-          // firebase
-          //   .auth()
-          //   .currentUser.getIdToken()
-          //   .then(token => {
-          //     console.log(token)
-          //   })
-
-          // ログインできたらTOP画面に遷移
-          this.$router.push(
-            this.$route.query.redirect
-              ? this.$route.query.redirect
-              : constants.path.TOP,
-          )
-        })
-        .catch(function(error) {
-          const errorCode = error.code
-          const errorMessage = error.message
-          alert(errorCode + '\n' + errorMessage)
-        })
     },
   },
 }
-function createAuthorizationURL() {
+
+function createAuthorizationURL(oauthConfigFromWeb) {
   const state = getRandomString()
   const nonce = getRandomString()
 
@@ -167,7 +114,7 @@ function createAuthorizationURL() {
 
   // console.log('randomValue: ' + randomValue)
   const authorization_endpoint_uri = [
-    oauthConfig.authorization_endpoint,
+    oauthConfigFromWeb.authorization_endpoint,
     '?client_id=',
     oauthConfig.client_id,
     '&redirect_uri=',
@@ -189,6 +136,21 @@ function createAuthorizationURL() {
   return { code_verifier, authorization_endpoint_uri }
 }
 
+function createOAuthConfig(openidConfigurationUrl) {
+  const url = openidConfigurationUrl.endsWith(
+    '.well-known/openid-configuration',
+  )
+    ? openidConfigurationUrl
+    : urljoin(openidConfigurationUrl, '.well-known/openid-configuration')
+
+  const options = {
+    uri: url,
+    method: 'GET',
+    json: true,
+  }
+  return doRequest(options)
+}
+
 // https://qiita.com/fukasawah/items/db7f0405564bdc37820e 感謝！
 function getRandomString() {
   const S = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -198,6 +160,7 @@ function getRandomString() {
     .join('')
   return randomValue
 }
+
 function sha256(target) {
   const base64 = crypto
     .createHash('sha256')

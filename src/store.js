@@ -1,7 +1,8 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import createPersistedState from 'vuex-persistedstate'
-import constants from '@/constants'
+import appConfig from 'appConfig'
+import constants from './constants'
 
 Vue.use(Vuex)
 
@@ -26,7 +27,7 @@ export default new Vuex.Store({
   plugins: [
     createPersistedState({
       storage: window.sessionStorage,
-      key: 'vuex-todo-examples',
+      key: `vuex-${appConfig.name}`,
     }),
   ],
 })

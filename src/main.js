@@ -5,12 +5,12 @@ import store from './store'
 import vuetify from './plugins/vuetify'
 
 import firebase from 'firebase'
-import firebaseConfig from '@/firebaseConfig'
-import constants from '@/constants'
+import firebaseConfig from 'firebaseConfig'
+import constants from './constants'
 
-// if (!firebase.apps.length) {
-firebase.initializeApp(firebaseConfig)
-// }
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig)
+}
 firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
 
 Vue.config.productionTip = false

@@ -9,8 +9,7 @@
 
 <script>
 import firebase from 'firebase'
-import axios from 'axios'
-import restConfig from '../restConfig'
+// import restConfig from '../restConfig'
 
 export default {
   methods: {
@@ -22,24 +21,24 @@ export default {
           .then(token => {
             console.log(token)
 
-            const value = {
-              id: '001',
-              name: 'こんにちは',
-              isDone: true,
-            }
-            const config = {
-              url: restConfig.echoUri,
-              method: 'POST',
-              headers: {
-                'Content-type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              data: value,
-              json: true,
-            }
-            axios(config)
-              .then(response => alert(JSON.stringify(response.data)))
-              .catch(error => alert(error.message))
+            // const value = {
+            //   id: '001',
+            //   name: 'こんにちは',
+            //   isDone: true,
+            // }
+            // const config = {
+            //   url: restConfig.echoUri,
+            //   method: 'POST',
+            //   headers: {
+            //     'Content-type': 'application/json',
+            //     Authorization: `Bearer ${token}`,
+            //   },
+            //   data: value,
+            //   json: true,
+            // }
+            // axios(config)
+            //   .then(response => alert(JSON.stringify(response.data)))
+            //   .catch(error => alert(error.message))
           })
       } else {
         console.log('currentUser is null')
