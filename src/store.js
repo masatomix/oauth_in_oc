@@ -10,6 +10,7 @@ export default new Vuex.Store({
   state: {
     user: {},
     loginStatus: false,
+    code_verifier: null,
   },
   mutations: {
     [constants.mutations.user](state, user) {
@@ -17,6 +18,9 @@ export default new Vuex.Store({
     },
     [constants.mutations.loginStatus](state, loginStatus) {
       state.loginStatus = loginStatus
+    },
+    code_verifier(state, code_verifier) {
+      state.code_verifier = code_verifier
     },
   },
   plugins: [

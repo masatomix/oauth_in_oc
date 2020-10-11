@@ -21,6 +21,17 @@
                     </a>
                   </h1>
                 </div>
+                <div class="form-signin">
+                  <h1>
+                    <a :href="authorization_endpoint_uri">
+                      <img
+                        alt="Sign in with Slack"
+                        src="https://api.slack.com/img/sign_in_with_slack.png"
+                        style="cursor:pointer"
+                      />
+                    </a>
+                  </h1>
+                </div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -34,6 +45,10 @@
 import firebase from 'firebase'
 import constants from '@/constants'
 import restConfig from '../restConfig'
+import oauthConfig from '../oauthConfig'
+import request from 'request'
+import crypto from 'crypto'
+
 // import 'firebaseui/dist/firebaseui.css'
 
 export default {
@@ -51,6 +66,7 @@ export default {
         rememberme: false,
       },
       token: null,
+      authorization_endpoint_uri: null,
     }
   },
   created: function() {
@@ -58,6 +74,20 @@ export default {
     this.token = param.get('token')
     if (this.token) {
       this.loginByToken(this.token)
+    }
+
+    if (param.get('code')) {
+      this.loginByCode(param.get('code')).finally(() =>
+        history.pushState('', '', '/'),
+      )
+    } else {
+      const {
+        code_verifier,
+        authorization_endpoint_uri,
+      } = createAuthorizationURL()
+
+      this.$store.commit('code_verifier', code_verifier)
+      this.authorization_endpoint_uri = authorization_endpoint_uri
     }
   },
   computed: {
@@ -67,7 +97,34 @@ export default {
     },
   },
   methods: {
+    async loginByCode(code) {
+      const code_verifier = this.$store.state.code_verifier
+      this.$store.commit('code_verifier', '')
+
+      const formParams = {
+        redirect_uri: oauthConfig.redirect_uri,
+        client_id: oauthConfig.client_id,
+        // client_secret: oauthConfig.client_secret,
+        grant_type: 'authorization_code',
+        code: code,
+        code_verifier: code_verifier,
+      }
+
+      const options = {
+        uri: oauthConfig.token_endpoint,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        form: formParams,
+        json: true,
+      }
+      const body = await doRequest(options)
+      alert(body.access_token)
+      // this.loginByToken(body.access_token)
+    },
     loginByToken(token) {
+      console.log(token)
       firebase
         .auth()
         .signInWithCustomToken(token)
@@ -96,6 +153,73 @@ export default {
         })
     },
   },
+}
+function createAuthorizationURL() {
+  const state = getRandomString()
+  const nonce = getRandomString()
+
+  // const code_verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+  const code_verifier = getRandomString()
+  console.log(`code_verifier: ${code_verifier}`)
+
+  // const code_challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+  const code_challenge = sha256(code_verifier)
+
+  // console.log('randomValue: ' + randomValue)
+  const authorization_endpoint_uri = [
+    oauthConfig.authorization_endpoint,
+    '?client_id=',
+    oauthConfig.client_id,
+    '&redirect_uri=',
+    encodeURIComponent(oauthConfig.redirect_uri),
+    '&state=',
+    state,
+    '&nonce=',
+    nonce,
+    '&response_type=',
+    encodeURIComponent('code'),
+    '&code_challenge=',
+    code_challenge,
+    '&code_challenge_method=',
+    'S256',
+    '&scope=',
+    encodeURIComponent(oauthConfig.scope),
+  ].join('')
+
+  return { code_verifier, authorization_endpoint_uri }
+}
+
+// https://qiita.com/fukasawah/items/db7f0405564bdc37820e 感謝！
+function getRandomString() {
+  const S = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const N = 50
+  const randomValue = Array.from(Array(N))
+    .map(() => S[Math.floor(Math.random() * S.length)])
+    .join('')
+  return randomValue
+}
+function sha256(target) {
+  const base64 = crypto
+    .createHash('sha256')
+    .update(target, 'utf8')
+    .digest('base64')
+  return base64
+    .replace('+', '-')
+    .replace('/', '_')
+    .replace('=', '')
+}
+
+function doRequest(option) {
+  console.log(option)
+  return new Promise((resolve, reject) => {
+    request(option, (error, response, body) => {
+      if (!error && response.statusCode === 200) {
+        resolve(body)
+      } else {
+        reject(error)
+      }
+    })
+  })
 }
 </script>
 
