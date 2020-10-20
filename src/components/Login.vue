@@ -52,12 +52,11 @@ export default {
     }
   },
   created: async function() {
-    this.oauthConfig = await createOAuthConfig(
-      'https://iis2.ad.ki-no.org/identity',
-    )
+    this.oauthConfig = await createOAuthConfig(oauthConfig.endpoint)
     const param = new URLSearchParams(window.location.search)
 
     if (param.get('code')) {
+      // reponse_mode = form_post の場合は、HTMLとしてPOSTしようとするので、子の受け方じゃなく /login へPOSTされるコードを書く。SPAで?
       this.loginByCode(param.get('code')).finally(() =>
         history.pushState('', '', '/'),
       )
@@ -125,6 +124,8 @@ function createAuthorizationURL(oauthConfigFromWeb) {
     nonce,
     '&response_type=',
     encodeURIComponent('code'),
+    // '&response_mode=',
+    // 'form_post',
     '&code_challenge=',
     code_challenge,
     '&code_challenge_method=',
